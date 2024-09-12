@@ -6,18 +6,33 @@ function formatarMoeda(valor) {
       minimumFractionDigits: 2 }).format(valor/100);
 }
 
- function getPeca(apresentacao) {
-  return pecas[apresentacao.id];
+
+
+class Repositorio {
+  constructor() {
+    this.pecas = JSON.parse(readFileSync('./pecas.json'));
+  }
+
+  getPeca(apresentacao) {
+    return pecas[apresentacao.id];
+  }
 }
+
+
+
 
 
 
 class ServicoCalculoFatura {
 
+  constructor(repo) {
+    this.repo = repo;
+  }
+
   CalcularCredito(apre) {
     let creditos = 0;
     creditos += Math.max(apre.audiencia - 30, 0);
-    if (getPeca(apre).tipo === "comedia") 
+    if (this.repo.getPeca(apre).tipo === "comedia") 
       creditos += Math.floor(apre.audiencia / 5);
     return creditos;   
   }
@@ -26,8 +41,8 @@ class ServicoCalculoFatura {
     let creditos = 0;
     for (let apre of fatura.apresentacoes) {
       creditos += Math.max(apre.audiencia - 30, 0);
-      if (getPeca(apre).tipo === "comedia") {
-        creditos += Math.floor(apre.audiencia / 5);
+      if (this.repo.getPeca(apre).tipo === "comedia") {
+        creditos += this.CalcularCredito(apre);
       }
     }
     return creditos;
@@ -35,7 +50,7 @@ class ServicoCalculoFatura {
 
   CalcularTotalApresentacao(apre) {
     let total = 0;
-    const peca = getPeca(apre);
+    const peca = this.repo.getPeca(apre);
     switch (peca.tipo) {
     case "tragedia":
       total = 40000;
@@ -64,13 +79,13 @@ class ServicoCalculoFatura {
   }
 }
 
-const calc = new ServicoCalculoFatura();
+const calc = new ServicoCalculoFatura(new Repositorio());
 
 
-function gerarFaturaStr(fatura, pecas,calc) {
+function gerarFaturaStr(fatura,calc) {
   let faturaStr = `Fatura ${fatura.cliente}\n`;
   for (let apre of fatura.apresentacoes) {
-    faturaStr += `  ${getPeca(apre).nome}: ${formatarMoeda(calc.CalcularTotalApresentacao(apre))} (${apre.audiencia} assentos)\n`;
+    faturaStr += `  ${calc.repo.getPeca(apre).nome}: ${formatarMoeda(calc.CalcularTotalApresentacao(apre))} (${apre.audiencia} assentos)\n`;
   }
   faturaStr += `Valor total: ${formatarMoeda(calc.CalcularTotalFatura(fatura))}\n`;
   faturaStr += `Créditos acumulados: ${calc.CalcularTotalCreditos(fatura)} \n`;
@@ -98,7 +113,7 @@ const faturas = JSON.parse(readFileSync('./faturas.json'));
 const pecas = JSON.parse(readFileSync('./pecas.json'));
 
 
-const faturaStr = gerarFaturaStr(faturas, pecas,calc);
+const faturaStr = gerarFaturaStr(faturas,calc);
 /*const faturaHTML = gerarFaturaHTML(faturas, pecas,calc);*/
 
 console.log(faturaStr);
